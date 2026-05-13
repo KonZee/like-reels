@@ -15,6 +15,7 @@ const VIDEOS = [
 const POOL_SIZE = 5;
 const HALF = Math.floor(POOL_SIZE / 2);
 
+const posterCache = new Map();
 let currentIndex = 0;
 let isAnimating = false;
 let touchStartY = 0;
@@ -26,23 +27,74 @@ function videoAt(i) {
   return VIDEOS[((i % VIDEOS.length) + VIDEOS.length) % VIDEOS.length];
 }
 
+function capturePoster(video, url) {
+  video.addEventListener('loadeddata', () => {
+    if (new URL(video.src, location.origin).pathname !== url) return;
+    if (posterCache.has(url) || !video.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    posterCache.set(url, canvas.toDataURL('image/jpeg', 0.7));
+  }, { once: true });
+}
+
+function hydrateSlide(slide, videoIndex) {
+  const url = videoAt(videoIndex);
+  slide.videoIndex = videoIndex;
+  slide.video.src = url;
+  slide.img.style.display = 'none';
+  capturePoster(slide.video, url);
+}
+
+function showPoster(slide) {
+  const url = videoAt(slide.videoIndex);
+  if (!posterCache.has(url)) return;
+  slide.img.src = posterCache.get(url);
+  slide.img.style.display = '';
+}
+
 function createSlide(videoIndex) {
   const el = document.createElement('div');
   el.className = 'slide';
+
   const video = document.createElement('video');
   video.muted = true;
   video.loop = true;
   video.playsInline = true;
-  video.src = videoAt(videoIndex);
+
+  const img = document.createElement('img');
+  img.className = 'placeholder';
+  img.style.display = 'none';
+
   el.appendChild(video);
+  el.appendChild(img);
   el.style.transform = `translateY(${videoIndex * 100}%)`;
   feed.appendChild(el);
-  return { el, video, videoIndex };
+
+  const slide = { el, video, img, videoIndex };
+  hydrateSlide(slide, videoIndex);
+  return slide;
+}
+
+function updatePreload() {
+  slides.forEach(slide => {
+    slide.video.preload = Math.abs(slide.videoIndex - currentIndex) <= 1 ? 'auto' : 'metadata';
+  });
 }
 
 function updateVideos() {
   slides.forEach(slide => {
-    slide.videoIndex === currentIndex ? slide.video.play() : slide.video.pause();
+    if (slide.videoIndex === currentIndex) {
+      showPoster(slide);
+      slide.video.play().catch(() => {});
+      slide.video.addEventListener('playing', () => {
+        slide.img.style.display = 'none';
+      }, { once: true });
+    } else {
+      slide.video.pause();
+      slide.video.currentTime = 0;
+    }
   });
 }
 
@@ -55,22 +107,24 @@ function navigate(dir) {
   slides.forEach(slide => {
     const offset = slide.videoIndex - currentIndex;
     if (Math.abs(offset) > HALF) {
-      slide.videoIndex = currentIndex + (dir > 0 ? HALF : -HALF);
-      slide.video.src = videoAt(slide.videoIndex);
+      const newVideoIndex = currentIndex + (dir > 0 ? HALF : -HALF);
       slide.el.style.transition = 'none';
-      slide.el.style.transform = `translateY(${(slide.videoIndex - currentIndex) * 100}%)`;
+      hydrateSlide(slide, newVideoIndex);
+      slide.el.style.transform = `translateY(${(newVideoIndex - currentIndex) * 100}%)`;
       requestAnimationFrame(() => { slide.el.style.transition = ''; });
     } else {
       slide.el.style.transform = `translateY(${offset * 100}%)`;
     }
   });
 
+  updatePreload();
   updateVideos();
   setTimeout(() => { isAnimating = false; }, 400);
 }
 
 function init() {
   for (let i = -HALF; i <= HALF; i++) slides.push(createSlide(i));
+  updatePreload();
   updateVideos();
 
   feed.addEventListener('wheel', e => {
