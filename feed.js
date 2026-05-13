@@ -124,6 +124,12 @@ function init() {
   updatePreload();
   updateVideos();
 
+  document.addEventListener('visibilitychange', () => {
+    const current = slides.find(s => s.videoIndex === currentIndex);
+    if (!current) return;
+    document.hidden ? current.video.pause() : current.video.play().catch(() => {});
+  });
+
   feed.addEventListener('wheel', e => {
     e.preventDefault();
     navigate(e.deltaY > 0 ? 1 : -1);
