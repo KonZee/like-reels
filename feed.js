@@ -17,6 +17,7 @@ const HALF = Math.floor(POOL_SIZE / 2);
 
 let currentIndex = 0;
 let isAnimating = false;
+let isMuted = true;
 let touchStartY = 0;
 
 const feed = document.getElementById('feed');
@@ -61,6 +62,17 @@ function createSlide(videoIndex) {
   return slide;
 }
 
+function initAudioBtn() {
+  const btn = document.querySelector('.audio-btn');
+  btn.addEventListener('click', () => {
+    isMuted = !isMuted;
+    btn.querySelector('.icon-muted').style.display = isMuted ? 'block' : 'none';
+    btn.querySelector('.icon-sound').style.display = isMuted ? 'none' : 'block';
+    const current = slides.find(s => s.videoIndex === currentIndex);
+    if (current) current.video.muted = isMuted;
+  });
+}
+
 function updatePreload() {
   slides.forEach(slide => {
     slide.video.preload = Math.abs(slide.videoIndex - currentIndex) <= 1 ? 'auto' : 'metadata';
@@ -70,6 +82,7 @@ function updatePreload() {
 function updateVideos() {
   slides.forEach(slide => {
     if (slide.videoIndex === currentIndex) {
+      slide.video.muted = isMuted;
       slide.video.play().catch(() => {});
       slide.video.addEventListener('playing', () => {
         slide.img.style.display = 'none';
@@ -107,6 +120,7 @@ function navigate(dir) {
 
 function init() {
   for (let i = -HALF; i <= HALF; i++) slides.push(createSlide(i));
+  initAudioBtn();
   updatePreload();
   updateVideos();
 
