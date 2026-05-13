@@ -9,6 +9,7 @@ const mime = {
   '.js': 'text/javascript',
   '.css': 'text/css',
   '.mp4': 'video/mp4',
+  '.jpg': 'image/jpeg',
 };
 
 function serveFile(req, res, filePath) {

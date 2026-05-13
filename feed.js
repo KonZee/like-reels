@@ -15,7 +15,6 @@ const VIDEOS = [
 const POOL_SIZE = 5;
 const HALF = Math.floor(POOL_SIZE / 2);
 
-const posterCache = new Map();
 let currentIndex = 0;
 let isAnimating = false;
 let touchStartY = 0;
@@ -27,30 +26,16 @@ function videoAt(i) {
   return VIDEOS[((i % VIDEOS.length) + VIDEOS.length) % VIDEOS.length];
 }
 
-function capturePoster(video, url) {
-  video.addEventListener('loadeddata', () => {
-    if (new URL(video.src, location.origin).pathname !== url) return;
-    if (posterCache.has(url) || !video.videoWidth) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    posterCache.set(url, canvas.toDataURL('image/jpeg', 0.7));
-  }, { once: true });
+function thumbAt(i) {
+  const file = videoAt(i);
+  return file.replace('/videos/', '/thumbs/').replace(/\.[^.]+$/, '.jpg');
 }
 
 function hydrateSlide(slide, videoIndex) {
-  const url = videoAt(videoIndex);
   slide.videoIndex = videoIndex;
-  slide.video.src = url;
-  slide.img.style.display = 'none';
-  capturePoster(slide.video, url);
-}
-
-function showPoster(slide) {
-  const url = videoAt(slide.videoIndex);
-  if (!posterCache.has(url)) return;
-  slide.img.src = posterCache.get(url);
+  slide.video.src = videoAt(videoIndex);
+  slide.video.load();
+  slide.img.src = thumbAt(videoIndex);
   slide.img.style.display = '';
 }
 
@@ -64,8 +49,7 @@ function createSlide(videoIndex) {
   video.playsInline = true;
 
   const img = document.createElement('img');
-  img.className = 'placeholder';
-  img.style.display = 'none';
+  img.className = 'thumb';
 
   el.appendChild(video);
   el.appendChild(img);
@@ -86,7 +70,6 @@ function updatePreload() {
 function updateVideos() {
   slides.forEach(slide => {
     if (slide.videoIndex === currentIndex) {
-      showPoster(slide);
       slide.video.play().catch(() => {});
       slide.video.addEventListener('playing', () => {
         slide.img.style.display = 'none';
