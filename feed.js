@@ -19,6 +19,9 @@ let currentIndex = 0;
 let isAnimating = false;
 let isMuted = true;
 let touchStartY = 0;
+let didMove = false;
+let isHolding = false;
+let holdTimer = null;
 
 const feed = document.getElementById('feed');
 const slides = [];
@@ -140,10 +143,51 @@ function init() {
     if (e.key === 'ArrowUp') navigate(-1);
   });
 
-  feed.addEventListener('pointerdown', e => { touchStartY = e.clientY; });
+  feed.addEventListener('pointerdown', e => {
+    if (e.target.closest('.audio-btn')) return;
+    touchStartY = e.clientY;
+    didMove = false;
+    isHolding = false;
+    holdTimer = setTimeout(() => {
+      isHolding = true;
+      const current = slides.find(s => s.videoIndex === currentIndex);
+      if (current) current.video.pause();
+    }, 300);
+  });
+
+  feed.addEventListener('pointermove', e => {
+    if (Math.abs(e.clientY - touchStartY) > 10) {
+      didMove = true;
+      clearTimeout(holdTimer);
+      if (isHolding) {
+        isHolding = false;
+        const current = slides.find(s => s.videoIndex === currentIndex);
+        if (current) current.video.play().catch(() => {});
+      }
+    }
+  });
+
   feed.addEventListener('pointerup', e => {
+    if (e.target.closest('.audio-btn')) return;
+    clearTimeout(holdTimer);
     const delta = touchStartY - e.clientY;
-    if (Math.abs(delta) > 60) navigate(delta > 0 ? 1 : -1);
+
+    if (isHolding) {
+      isHolding = false;
+      const current = slides.find(s => s.videoIndex === currentIndex);
+      if (current) current.video.play().catch(() => {});
+      return;
+    }
+
+    if (Math.abs(delta) > 60) {
+      navigate(delta > 0 ? 1 : -1);
+      return;
+    }
+
+    if (!didMove) {
+      const current = slides.find(s => s.videoIndex === currentIndex);
+      if (current) current.video.paused ? current.video.play().catch(() => {}) : current.video.pause();
+    }
   });
 }
 
