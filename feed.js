@@ -19,6 +19,7 @@ let currentIndex = 0;
 let isAnimating = false;
 let isMuted = true;
 let touchStartY = 0;
+let isPointerDown = false;
 let didMove = false;
 let isHolding = false;
 let holdTimer = null;
@@ -133,6 +134,21 @@ function init() {
     document.hidden ? current.video.pause() : current.video.play().catch(() => {});
   });
 
+  feed.addEventListener('pointercancel', () => {
+    isPointerDown = false;
+    clearTimeout(holdTimer);
+    if (didMove) {
+      slides.forEach(s => { s.el.style.transition = ''; });
+      requestAnimationFrame(() => {
+        slides.forEach(s => {
+          s.el.style.transform = `translateY(${(s.videoIndex - currentIndex) * 100}%)`;
+        });
+      });
+    }
+    didMove = false;
+    isHolding = false;
+  });
+
   feed.addEventListener('wheel', e => {
     e.preventDefault();
     navigate(e.deltaY > 0 ? 1 : -1);
@@ -144,10 +160,12 @@ function init() {
   });
 
   feed.addEventListener('pointerdown', e => {
-    if (e.target.closest('.audio-btn')) return;
+    if (e.target.closest('.audio-btn') || isAnimating) return;
     touchStartY = e.clientY;
     didMove = false;
     isHolding = false;
+    isPointerDown = true;
+    feed.setPointerCapture(e.pointerId);
     holdTimer = setTimeout(() => {
       isHolding = true;
       const current = slides.find(s => s.videoIndex === currentIndex);
@@ -156,7 +174,9 @@ function init() {
   });
 
   feed.addEventListener('pointermove', e => {
-    if (Math.abs(e.clientY - touchStartY) > 10) {
+    if (!isPointerDown) return;
+    const dragY = e.clientY - touchStartY;
+    if (!didMove && Math.abs(dragY) > 10) {
       didMove = true;
       clearTimeout(holdTimer);
       if (isHolding) {
@@ -164,11 +184,18 @@ function init() {
         const current = slides.find(s => s.videoIndex === currentIndex);
         if (current) current.video.play().catch(() => {});
       }
+      slides.forEach(s => { s.el.style.transition = 'none'; });
+    }
+    if (didMove) {
+      slides.forEach(s => {
+        s.el.style.transform = `translateY(calc(${(s.videoIndex - currentIndex) * 100}% + ${dragY}px))`;
+      });
     }
   });
 
   feed.addEventListener('pointerup', e => {
     if (e.target.closest('.audio-btn')) return;
+    isPointerDown = false;
     clearTimeout(holdTimer);
     const delta = touchStartY - e.clientY;
 
@@ -179,15 +206,22 @@ function init() {
       return;
     }
 
-    if (Math.abs(delta) > 60) {
-      navigate(delta > 0 ? 1 : -1);
+    if (didMove) {
+      slides.forEach(s => { s.el.style.transition = ''; });
+      if (Math.abs(delta) > window.innerHeight * 0.3) {
+        navigate(delta > 0 ? 1 : -1);
+      } else {
+        requestAnimationFrame(() => {
+          slides.forEach(s => {
+            s.el.style.transform = `translateY(${(s.videoIndex - currentIndex) * 100}%)`;
+          });
+        });
+      }
       return;
     }
 
-    if (!didMove) {
-      const current = slides.find(s => s.videoIndex === currentIndex);
-      if (current) current.video.paused ? current.video.play().catch(() => {}) : current.video.pause();
-    }
+    const current = slides.find(s => s.videoIndex === currentIndex);
+    if (current) current.video.paused ? current.video.play().catch(() => {}) : current.video.pause();
   });
 }
 
