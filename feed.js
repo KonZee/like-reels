@@ -19,6 +19,7 @@ let currentIndex = 0;
 let isAnimating = false;
 let isMuted = true;
 let touchStartY = 0;
+let touchStartTime = 0;
 let isPointerDown = false;
 let didMove = false;
 let isHolding = false;
@@ -162,6 +163,7 @@ function init() {
   feed.addEventListener('pointerdown', e => {
     if (e.target.closest('.audio-btn') || isAnimating) return;
     touchStartY = e.clientY;
+    touchStartTime = Date.now();
     didMove = false;
     isHolding = false;
     isPointerDown = true;
@@ -208,7 +210,8 @@ function init() {
 
     if (didMove) {
       slides.forEach(s => { s.el.style.transition = ''; });
-      if (Math.abs(delta) > window.innerHeight * 0.3) {
+      const velocity = Math.abs(delta) / (Date.now() - touchStartTime);
+      if ((velocity > 0.5 && Math.abs(delta) > 20) || Math.abs(delta) > window.innerHeight * 0.3) {
         navigate(delta > 0 ? 1 : -1);
       } else {
         requestAnimationFrame(() => {
