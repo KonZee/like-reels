@@ -27,7 +27,7 @@ function serveFile(req, res, filePath) {
     if (range) {
       const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
       const start = parseInt(startStr, 10);
-      const end = endStr ? parseInt(endStr, 10) : stat.size - 1;
+      const end = endStr ? Math.min(parseInt(endStr, 10), stat.size - 1) : stat.size - 1;
       res.writeHead(206, {
         'Content-Range': `bytes ${start}-${end}/${stat.size}`,
         'Accept-Ranges': 'bytes',
@@ -47,11 +47,12 @@ function serveFile(req, res, filePath) {
 }
 
 const server = http.createServer((req, res) => {
-  const filePath = req.url === '/' || req.url === '/index.html'
+  const urlPath = req.url.split('?')[0];
+  const filePath = urlPath === '/' || urlPath === '/index.html'
     ? path.join(__dirname, 'index.html')
-    : path.join(__dirname, req.url);
+    : path.join(__dirname, urlPath);
 
-  if (!filePath.startsWith(__dirname)) {
+  if (!path.resolve(filePath).startsWith(path.resolve(__dirname))) {
     res.writeHead(403);
     res.end('Forbidden');
     return;

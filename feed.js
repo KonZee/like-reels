@@ -39,10 +39,13 @@ function thumbAt(i) {
 
 function hydrateSlide(slide, videoIndex) {
   slide.videoIndex = videoIndex;
-  slide.video.src = videoAt(videoIndex);
-  slide.video.load();
-  slide.img.src = thumbAt(videoIndex);
-  slide.img.style.display = '';
+  const src = videoAt(videoIndex);
+  if (new URL(src, location.origin).href !== slide.video.src) {
+    slide.video.src = src;
+    slide.video.load();
+    slide.img.src = thumbAt(videoIndex);
+    slide.img.style.display = '';
+  }
 }
 
 function createSlide(videoIndex) {
@@ -112,7 +115,7 @@ function navigate(dir) {
       slide.el.style.transition = 'none';
       hydrateSlide(slide, newVideoIndex);
       slide.el.style.transform = `translateY(${(newVideoIndex - currentIndex) * 100}%)`;
-      requestAnimationFrame(() => { slide.el.style.transition = ''; });
+      requestAnimationFrame(() => { requestAnimationFrame(() => { slide.el.style.transition = ''; }); });
     } else {
       slide.el.style.transform = `translateY(${offset * 100}%)`;
     }
@@ -120,7 +123,11 @@ function navigate(dir) {
 
   updatePreload();
   updateVideos();
-  setTimeout(() => { isAnimating = false; }, 400);
+
+  const current = slides.find(s => s.videoIndex === currentIndex);
+  const done = () => { isAnimating = false; };
+  current.el.addEventListener('transitionend', done, { once: true });
+  current.el.addEventListener('transitioncancel', done, { once: true });
 }
 
 function init() {
