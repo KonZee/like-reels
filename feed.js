@@ -17,6 +17,7 @@ const HALF = Math.floor(POOL_SIZE / 2);
 
 let currentIndex = 0;
 let isAnimating = false;
+let pendingNav = 0;
 let isMuted = true;
 let touchStartY = 0;
 let touchStartTime = 0;
@@ -103,7 +104,8 @@ function updateVideos() {
 }
 
 function navigate(dir) {
-  if (isAnimating) return;
+  if (isAnimating) { pendingNav = dir; return; }
+  pendingNav = 0;
   isAnimating = true;
 
   currentIndex += dir;
@@ -125,7 +127,7 @@ function navigate(dir) {
   updateVideos();
 
   const current = slides.find(s => s.videoIndex === currentIndex);
-  const done = () => { isAnimating = false; };
+  const done = () => { isAnimating = false; if (pendingNav !== 0) { const d = pendingNav; pendingNav = 0; navigate(d); } };
   current.el.addEventListener('transitionend', done, { once: true });
   current.el.addEventListener('transitioncancel', done, { once: true });
 }
@@ -168,7 +170,7 @@ function init() {
   });
 
   feed.addEventListener('pointerdown', e => {
-    if (e.target.closest('.audio-btn') || isAnimating) return;
+    if (e.target.closest('.audio-btn')) return;
     touchStartY = e.clientY;
     touchStartTime = Date.now();
     didMove = false;
@@ -193,9 +195,9 @@ function init() {
         const current = slides.find(s => s.videoIndex === currentIndex);
         if (current) current.video.play().catch(() => {});
       }
-      slides.forEach(s => { s.el.style.transition = 'none'; });
+      if (!isAnimating) slides.forEach(s => { s.el.style.transition = 'none'; });
     }
-    if (didMove) {
+    if (didMove && !isAnimating) {
       slides.forEach(s => {
         s.el.style.transform = `translateY(calc(${(s.videoIndex - currentIndex) * 100}% + ${dragY}px))`;
       });
@@ -216,11 +218,11 @@ function init() {
     }
 
     if (didMove) {
-      slides.forEach(s => { s.el.style.transition = ''; });
+      if (!isAnimating) slides.forEach(s => { s.el.style.transition = ''; });
       const velocity = Math.abs(delta) / (Date.now() - touchStartTime);
       if ((velocity > 0.5 && Math.abs(delta) > 20) || Math.abs(delta) > window.innerHeight * 0.3) {
         navigate(delta > 0 ? 1 : -1);
-      } else {
+      } else if (!isAnimating) {
         requestAnimationFrame(() => {
           slides.forEach(s => {
             s.el.style.transform = `translateY(${(s.videoIndex - currentIndex) * 100}%)`;
