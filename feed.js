@@ -27,6 +27,7 @@ let isHolding = false;
 let holdTimer = null;
 
 const feed = document.getElementById('feed');
+const progressBar = document.querySelector('.progress-bar');
 const playIndicator = document.querySelector('.play-indicator');
 const slides = [];
 
@@ -94,12 +95,14 @@ function updateVideos() {
     if (slide.videoIndex === currentIndex) {
       slide.video.muted = isMuted;
       slide.video.play().catch(() => {});
-      slide.video.addEventListener('playing', () => {
-        slide.img.style.display = 'none';
-      }, { once: true });
+      slide.video.addEventListener('playing', () => { slide.img.style.display = 'none'; }, { once: true });
+      slide.video.ontimeupdate = () => {
+        if (slide.video.duration) progressBar.style.transform = `scaleX(${slide.video.currentTime / slide.video.duration})`;
+      };
     } else {
       slide.video.pause();
       slide.video.currentTime = 0;
+      slide.video.ontimeupdate = null;
     }
   });
 }
@@ -109,6 +112,7 @@ function navigate(dir) {
   pendingNav = 0;
   isAnimating = true;
   playIndicator.style.display = 'none';
+  progressBar.style.transform = 'scaleX(0)';
 
   currentIndex += dir;
 

@@ -21,6 +21,7 @@ Infinite requirement comes from the reference and adds complexity to the task.
 - The global audio toggle
 - Pause functionality: hold, click, on tab switch
 - Generated thumbnail placeholders from the first frame for slow connections with `generate-thumbs.js` script.
+- Progress bar based on timeUpdate event
 
 ## Limitations
 
