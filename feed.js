@@ -159,6 +159,8 @@ function init() {
     isHolding = false;
   });
 
+  feed.addEventListener('contextmenu', e => { e.preventDefault(); });
+
   feed.addEventListener('wheel', e => {
     e.preventDefault();
     navigate(e.deltaY > 0 ? 1 : -1);
