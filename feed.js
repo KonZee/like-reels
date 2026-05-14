@@ -27,6 +27,7 @@ let isHolding = false;
 let holdTimer = null;
 
 const feed = document.getElementById('feed');
+const playIndicator = document.querySelector('.play-indicator');
 const slides = [];
 
 function videoAt(i) {
@@ -107,6 +108,7 @@ function navigate(dir) {
   if (isAnimating) { pendingNav = dir; return; }
   pendingNav = 0;
   isAnimating = true;
+  playIndicator.style.display = 'none';
 
   currentIndex += dir;
 
@@ -235,7 +237,10 @@ function init() {
     }
 
     const current = slides.find(s => s.videoIndex === currentIndex);
-    if (current) current.video.paused ? current.video.play().catch(() => {}) : current.video.pause();
+    if (current) {
+      if (current.video.paused) { current.video.play().catch(() => {}); playIndicator.style.display = 'none'; }
+      else { current.video.pause(); playIndicator.style.display = 'flex'; }
+    }
   });
 }
 
